@@ -59,7 +59,7 @@ class Controller(object):
             }
         )
         return response['AuthenticationResult']['IdToken']
-
+                         
 
     def run(self):
         
@@ -69,6 +69,8 @@ class Controller(object):
 
         try:
             id_token = self._get_id_token_by_cognito(username, password)
+            #print(id_token)
+            #id_token = "7i7r6qvd35unqieb3cf3jest8a"
         except ClientError as e:
             if e.response['Error']['Code'] == 'UserNotFoundException':
                 print('User does not exist')
