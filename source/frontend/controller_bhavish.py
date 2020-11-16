@@ -7,6 +7,7 @@ import boto3
 import glob
 from botocore.exceptions import ClientError
 
+from PIL import Image
 from video_capture import VideoCapture
 from detector import Detector
 from viewer import Viewer
@@ -78,7 +79,12 @@ class Controller(object):
                 print('Invalid password')
                 return
             raise
-
+        
+        im = Image.open(r"Screenshot 4.png")  ### TO BE EDITED to read ZOOM GALLERY VIEW SCREENSHOT file
+        width, height = im.size 
+        no_cols = 2               ### NUMBER OF COLUMNS in Screenshot's GRID IMAGE
+        no_rows = 3               ### NUMBER OF ROWS in Screenshot's GRID IMAGE
+        
         # Main loop
         while True:
             #frame = self.video_capture.read()
@@ -86,62 +92,71 @@ class Controller(object):
             #    raise RuntimeError('A problem occurred with camera. Cannot read a new image.')
 
             #face_exists, face_image = self.detector.detect(frame)
+                                  
             face_exists = 1
-            images = [cv2.imread(file) for file in glob.glob("C:/Users/bhavi/OneDrive/Desktop/CloudScreenshot/*.png")]
-            for el in images:
-                face_image = el
-                #face_image = cv2.imread('Bhavish Kumar.png')
-                cv2.imshow('image', face_image)
+            #images = [cv2.imread(file) for file in glob.glob("C:/Users/bhavi/OneDrive/Desktop/CloudScreenshot/*.png")]
+            for i in range(no_cols):
+                for j in range(no_rows):
+                    left = 10+(i*(width/no_cols))
+                    top = 10+(j*(height /no_rows))
+                    right = (i+1)*width/no_cols
+                    bottom = (j+1)*(height /no_rows)
+  
+                    im1 = im.crop((left, top, right, bottom))
+                    #for el in images:
+                    im1.save("curr_img.png")
+                    face_image = cv2.imread('curr_img.png')
+                    #cv2.imshow('image', face_image)
     
-                if face_exists:
-                    self.viewer.show_checking(face_image)
-                    area = face_image.shape[0] * face_image.shape[1]
-                    if area > self.FACE_AREA_THRESHOLD * 2:
-                        # resize
-                        ratio = math.sqrt(area / (self.FACE_AREA_THRESHOLD * 2))
-                        face_image = cv2.resize(face_image, (int(
-                            face_image.shape[1] / ratio), int(face_image.shape[0] / ratio)))
-                    _, encoded_face_image = cv2.imencode('.jpg', face_image)
-    
-                    # Call API
-                    try:
-                        endpoint = 'https://' + self.API_ENDPOINT
-                        t = datetime.datetime.utcnow()
-                        amz_date = t.strftime('%Y%m%dT%H%M%SZ')
-                        headers = {
-                            'Content-Type': 'image/jpg',
-                            'X-Amz-Date':amz_date,
-                            'Authorization': id_token
-                        }
-                        request_parameters = encoded_face_image.tostring()
-                        res = requests.post(endpoint, data=request_parameters, headers=headers).json()
-                        print(res)
-                        # renponse samples:
-                        #      {'result': 'OK', 'name': 'hoge', 'similarity': 95.15}
-                        #      {'result': 'NO_MATCH', 'name': '', 'similarity': 0}
-                        #      {'result': 'INVALID', 'name': '', 'similarity': 0}
-    
-                        result = res['result']
-                    except Exception as e:
-                        print(e)
-    
+                    if face_exists:
+                        self.viewer.show_checking(face_image)
+                        area = face_image.shape[0] * face_image.shape[1]
+                        if area > self.FACE_AREA_THRESHOLD * 2:
+                            # resize
+                            ratio = math.sqrt(area / (self.FACE_AREA_THRESHOLD * 2))
+                            face_image = cv2.resize(face_image, (int(
+                                face_image.shape[1] / ratio), int(face_image.shape[0] / ratio)))
+                        _, encoded_face_image = cv2.imencode('.jpg', face_image)
+        
+                        # Call API
+                        try:
+                            endpoint = 'https://' + self.API_ENDPOINT
+                            t = datetime.datetime.utcnow()
+                            amz_date = t.strftime('%Y%m%dT%H%M%SZ')
+                            headers = {
+                                'Content-Type': 'image/jpg',
+                                'X-Amz-Date':amz_date,
+                                'Authorization': id_token
+                            }
+                            request_parameters = encoded_face_image.tostring()
+                            res = requests.post(endpoint, data=request_parameters, headers=headers).json()
+                            print(res)
+                            # renponse samples:
+                            #      {'result': 'OK', 'name': 'hoge', 'similarity': 95.15}
+                            #      {'result': 'NO_MATCH', 'name': '', 'similarity': 0}
+                            #      {'result': 'INVALID', 'name': '', 'similarity': 0}
+        
+                            result = res['result']
+                        except Exception as e:
+                            print(e)
+        
+                        else:
+                            if result == 'OK':
+                                name = res['name']
+                                similarity = res['similarity']
+                                if similarity > self.FACE_SIMILARITY_THRESHOLD:
+                                    self._update_name_list()
+                                    if name not in [d.get('name') for d in self.recent_name_list]:
+                                        # OK! Go Ahead!
+                                        self.registered_name_set.add(name)
+                                        self.recent_name_list.append(
+                                            {'name': name, 'timestamp': datetime.datetime.now()})
+                                        self.viewer.show_welcome(face_image, name)
+        
                     else:
-                        if result == 'OK':
-                            name = res['name']
-                            similarity = res['similarity']
-                            if similarity > self.FACE_SIMILARITY_THRESHOLD:
-                                self._update_name_list()
-                                if name not in [d.get('name') for d in self.recent_name_list]:
-                                    # OK! Go Ahead!
-                                    self.registered_name_set.add(name)
-                                    self.recent_name_list.append(
-                                        {'name': name, 'timestamp': datetime.datetime.now()})
-                                    self.viewer.show_welcome(face_image, name)
-    
-                else:
-                    # No face found
-                    self.viewer.show_next()
-    
-                key = cv2.waitKey(1)
-                if key == ord('q'):
-                    raise RuntimeError("key 'q' is pressed")
+                        # No face found
+                        self.viewer.show_next()
+        
+                    key = cv2.waitKey(1)
+                    if key == ord('q'):
+                        raise RuntimeError("key 'q' is pressed")
