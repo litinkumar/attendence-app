@@ -5,6 +5,7 @@ import math
 import getpass
 import boto3
 import glob
+import os
 from botocore.exceptions import ClientError
 
 from PIL import Image
@@ -33,7 +34,12 @@ class Controller(object):
         self.video_capture = VideoCapture(env, video_device)
         self.detector = Detector(env)
         self.viewer = Viewer(env)
-
+        
+    def getfiles(self, dirpath):
+        a = [s for s in os.listdir(dirpath)if os.path.isfile(os.path.join(dirpath, s))]
+        a.sort(key=lambda s: os.path.getmtime(os.path.join(dirpath, s)))
+        return os.path.join(dirpath, a[-1])
+    
     def _update_name_list(self):
         limit_time = datetime.datetime.now() - datetime.timedelta(seconds=self.NAME_TTL_SEC)
         for d in self.recent_name_list[:]:
@@ -62,7 +68,6 @@ class Controller(object):
         )
         return response['AuthenticationResult']['IdToken']
 
-
     def run(self):
         
         # input username and password
@@ -80,21 +85,21 @@ class Controller(object):
                 return
             raise
         
-        im = Image.open(r"Screenshot 4.png")  ### TO BE EDITED to read ZOOM GALLERY VIEW SCREENSHOT file
+        path = "D:/SYR ADS/Sem 3/IST 615 Cloud Management/Project_Imp3/auto-check-in-app/Screenshot"  ## Path where the screenshot is stored
+        image_path = self.getfiles(path)
+        
+        im = Image.open(image_path)  
         width, height = im.size 
-        no_cols = 2               ### NUMBER OF COLUMNS in Screenshot's GRID IMAGE
-        no_rows = 3               ### NUMBER OF ROWS in Screenshot's GRID IMAGE
+        no_cols = int(input("Enter Number of Columns: ")) ### NUMBER OF COLUMNS in Screenshot's GRID IMAGE
+        no_rows = int(input("Enter Number of Rows: ")) ### NUMBER OF ROWS in Screenshot's GRID IMAGE
+                     
         
         # Main loop
-        while True:
-            #frame = self.video_capture.read()
-            #if frame is None:
-            #    raise RuntimeError('A problem occurred with camera. Cannot read a new image.')
-
-            #face_exists, face_image = self.detector.detect(frame)
-                                  
+        iteration = 0
+        while iteration<1:
+            iteration = iteration + 1                      
             face_exists = 1
-            #images = [cv2.imread(file) for file in glob.glob("C:/Users/bhavi/OneDrive/Desktop/CloudScreenshot/*.png")]
+            
             for i in range(no_cols):
                 for j in range(no_rows):
                     left = 10+(i*(width/no_cols))
